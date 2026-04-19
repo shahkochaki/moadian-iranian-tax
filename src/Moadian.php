@@ -4,7 +4,7 @@ namespace Shahkochaki\Moadian;
 
 use GuzzleHttp\Client;
 use Shahkochaki\Moadian\Exceptions\MoadianException;
-use Shahkochaki\Moadian\Http\EconomicCodeInformation;
+use Shahkochaki\Moadian\Http\RegistrationCodeInformation;
 use Shahkochaki\Moadian\Http\FiscalInfo;
 use Shahkochaki\Moadian\Http\GetNonce;
 use Shahkochaki\Moadian\Http\InquiryByReferenceNumber;
@@ -107,12 +107,12 @@ class Moadian
         return $this->sendRequest($request);
     }
 
-    public function getEconomicCodeInformation(string $taxID)
+    public function getRegistrationCodeInformation(string $taxID)
     {
         if (!preg_match('/^(\d{11}|\d{14})$/', $taxID))
-            throw new MoadianException('Economic code must be 11 digits for legal entities or 14 digits for natural persons');
+            throw new MoadianException('Registration code must be 11 digits for legal entities or 14 digits for natural persons');
 
-        $request = new EconomicCodeInformation($taxID);
+        $request = new RegistrationCodeInformation($taxID);
         return $this->sendRequest($request);
     }
 

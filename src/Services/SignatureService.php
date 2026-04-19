@@ -7,10 +7,14 @@ use Firebase\JWT\JWT;
 
 class SignatureService
 {
-    private string $privateKey;
+    /** @var \OpenSSLAsymmetricKey|resource|string */
+    private $privateKey;
     private string $x5c;
 
-    public function __construct(string $privateKey, string $x5c)
+    /**
+     * @param \OpenSSLAsymmetricKey|resource|string $privateKey PEM string or key loaded via openssl_pkey_get_private()
+     */
+    public function __construct($privateKey, string $x5c)
     {
         $this->privateKey = $privateKey;
         $this->x5c = $x5c;

@@ -6,7 +6,7 @@ use Shahkochaki\Moadian\Services\EncryptionService;
 use Shahkochaki\Moadian\Services\SignatureService;
 use Shahkochaki\Moadian\Traits\HasToken;
 
-class EconomicCodeInformation extends Request
+class RegistrationCodeInformation extends Request
 {
     use HasToken;
 

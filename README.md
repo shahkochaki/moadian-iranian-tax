@@ -1,157 +1,136 @@
-# Laravel Moadian API Driver (API Only)
+﻿<div align="center">
 
-This Laravel package provides a convenient way to interact with the API of the "Moadian system" (سامانه مودیان) offered by intamedia.ir. With this package, you can easily make requests to the Moadian API and handle the responses in your Laravel application.
+# Laravel Moadian - Iranian Tax Authority API
 
-**Important Notice:** This package provides access to the Moadian system API and is not intended for direct user interaction. It's designed for developers integrating Moadian functionality into their applications.
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/shahkochaki/moadian-iranian-tax.svg?style=flat-square)](https://packagist.org/packages/shahkochaki/moadian-iranian-tax)
+[![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-blue?style=flat-square)](https://php.net)
+[![Laravel Version](https://img.shields.io/badge/Laravel-8%2B-red?style=flat-square)](https://laravel.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-For a user-friendly accounting software experience, we recommend checking out our Shahkochaki project (under **development**):
+A professional Laravel package for seamless integration with the **Iranian Tax Authority (سامانه مودیان)** API.
+Handles authentication, digital signing, encryption, invoice submission, and inquiry all out of the box.
 
-- Link: https://github.com/shahkochaki
+</div>
+
+---
+
+## Features
+
+- Send invoices to the Moadian system with full JWS/JWE signing and encryption
+- Inquiry by UID or reference number
+- Get fiscal info and registration code information
+- Automatic token management with nonce
+- Supports encrypted private keys (password-protected .pem files)
+- Laravel Facade support for clean, expressive syntax
+- Laravel auto-discovery (no manual provider registration)
+
+---
 
 ## Requirements
 
-This package requires Laravel 8 or higher. It has been tested with Laravel 8 and PHP 7.4, as well as with Laravel 10 and PHP 8.1.
+| Dependency  | Version                             |
+| ----------- | ----------------------------------- |
+| PHP         | `^7.4` or `^8.0`                    |
+| Laravel     | `^8.0`, `^9.0`, `^10.0`, or `^11.0` |
+| ext-openssl | \*                                  |
+
+---
 
 ## Installation
 
-To install this package, simply run the following command:
+Install via Composer:
 
 ```bash
 composer require shahkochaki/moadian-iranian-tax
 ```
 
+The service provider and facade are registered automatically via Laravel package auto-discovery.
+
+### Publish the config file
+
+```bash
+php artisan vendor:publish --provider="Shahkochaki\Moadian\MoadianServiceProvider" --tag=config
+```
+
+---
+
+## Configuration
+
+Add the following variables to your `.env` file:
+
+```dotenv
+MOADIAN_USERNAME=your-username-here
+
+# Path to your private key file (default: storage/app/keys/private.pem)
+MOADIAN_PRIVATE_KEY_PATH=/path/to/private.pem
+
+# Optional: password for encrypted private key
+MOADIAN_PRIVATE_KEY_PASSWORD=your-private-key-password
+
+# Path to your certificate file (default: storage/app/keys/certificate.crt)
+MOADIAN_CERTIFICATE_PATH=/path/to/certificate.crt
+
+# Optional: override the API base URL
+MOADIAN_BASE_URI=https://tp.tax.gov.ir/requestsmanager/api/v2/
+```
+
+> **Default key locations:**
+>
+> - Private key: `storage_path('app/keys/private.pem')`
+> - Certificate: `storage_path('app/keys/certificate.crt')`
+
+---
+
 ## Usage
 
-To use this package, you will need to obtain a username, private key and certificate from intamedia.ir. Once you have your credentials, you can configure the package in your Laravel application's `.env` file:
-
-```
-MOADIAN_USERNAME=your-username-here
-MOADIAN_PASSWORD=your-password-here
-MOADIAN_PRIVATE_KEY_PATH=/path/to/private.pem
-MOADIAN_CERTIFICATE_PATH=/path/to/certificate.crt
-```
-
-The default location to store the private key is: storage_path('app/keys/private.pem');\
-The default location to store the certificate is: storage_path('app/keys/certificate.crt');
-
-You can then use the `Moadian` facade to interact with the Moadian API. Here are some examples:
+Use the `Moadian` facade anywhere in your application:
 
 ```php
 use Shahkochaki\Moadian\Facades\Moadian;
-
-// Get server info
-$info = Moadian::getServerInfo();
-
-// Get fiscal info
-$fiscalInfo = Moadian::getFiscalInfo();
-
-// Get economic code information
-$info = Moadian::getEconomicCodeInformation('your-economic-code');
-
-// Inquiry by reference numbers
-$info = Moadian::inquiryByReferenceNumbers('your-reference-number');
 ```
 
-### Send Invoice
-
-To send an invoice to Moadian, you can use the sendInvoice() method provided by the plugin. Here's an example of how to use it:
+### Get Server Info
 
 ```php
-use Shahkochaki\Moadian\Invoice as MoadianInvoice;
-use Shahkochaki\Moadian\InvoiceHeader;
-use Shahkochaki\Moadian\InvoiceItem;
-use Shahkochaki\Moadian\Payment;
+$
+esponse = Moadian::getServerInfo();
 
-public function sendInvoice($invoiceId = '') {
-    $invoiceId = intval($invoiceId);
-    $invoice = Invoice::find($invoiceId);
-
-    if (!$invoice) {
-        throw new Exception('Invoice not found');
-    }
-
-    $timestamp = Carbon::parse($invoice->date)->timestamp * 1000;
-
-    $header = new InvoiceHeader(env('MOADIAN_USERNAME'));
-    $header->setTaxID(Carbon::parse($invoice->date), $invoice->number);
-    $header->indati2m = $timestamp;
-    $header->indatim = $timestamp;
-    $header->inty = 1; //invoice type
-    $header->inno = $invoiceId;
-    $header->irtaxid = null; // invoice reference tax ID
-    $header->inp = $invoice->inp; //invoice pattern
-    $header->ins = 1;
-    $header->tins = env('TAXID');
-    $header->tob = 2;
-    $header->bid = $invoice->nationalnum;
-    $header->tinb = $invoice->nationalnum;
-    $header->bpc = $invoice->postal;
-
-    $amount   = $invoice->items->sum('amount');
-    $discount = $invoice->items->sum('discount');
-    $vat      = $invoice->items->sum('vat');
-    $header->tprdis = $amount;
-    $header->tdis = $discount;
-    $header->tadis = $amount - $discount;
-    $header->tvam = $vat;
-    $header->todam = 0;
-    $header->tbill = $amount - $discount + $vat;
-    $header->setm = $invoice->setm;
-    $header->cap = $amount - $discount + $vat;
-
-    $moadianInvoice = new MoadianInvoice($header);
-
-    foreach ($invoice->items as $item) {
-        $body = new InvoiceItem();
-        $body->sstid = $item->seals->sstid;
-        $body->sstt = $item->desc;
-        $body->am = '1';
-        $body->mu = 1627;
-        $body->fee = $item->amount;
-        $body->prdis = $item->amount;
-        $body->dis = $item->discount;
-        $body->adis = $item->amount - $item->discount;
-        $body->vra = 9;
-        $body->vam = $item->vat; // or directly calculate here like floor($body->adis * $body->vra / 100)
-        $body->tsstam = $item->amount - $item->discount + $item->vat;
-        $moadianInvoice->addItem($body);
-    }
-
-    foreach ($invoice->cashes as $cashe) {
-        if ($cashe->active == 1) {
-            $payment = new Payment();
-            $payment->trn = $cashe->code;
-            $payment->pdt = Carbon::parse($cashe->date)->timestamp * 1000;
-            $moadianInvoice->addPayment($payment);
-        }
-    }
-
-    $info = Moadian::sendInvoice($moadianInvoice);
-    $info = $info->getBody();
-    $info = $info['result'][0];
-
-    $invoice->taxID           = $header->taxid;
-    $invoice->uid             = $info['uid'] ?? '';
-    $invoice->referenceNumber = $info['referenceNumber'] ?? '';
-    $invoice->taxResult       = 'send';
-
-    $invoice->save();
+if ($
+esponse->isSuccessful()) {
+    $data = $
+esponse->getBody();
 }
 ```
 
-Note that you need to have a valid Moadian account and credentials to use this plugin.
+### Get Fiscal Info
 
-There are other types of invoices (Cancellation, corrective, Sales return) that you can send with this package. For more information about different types of invoices and how to send them, please refer to the official document.
+```php
+$
+esponse = Moadian::getFiscalInfo();
+```
 
-## Useful Links
+### Get Registration Code Information
 
-- [The regulation of store terminals](https://www.intamedia.ir/The-regulation-of-store-terminals)
-- [Guide to extract public key from digital signature](https://www.intamedia.ir/The-regulation-of-store-terminals/ID/15879/%D8%B1%D8%A7%D9%87%D9%86%D9%85%D8%A7%DB%8C-%D8%A7%D8%B3%D8%AA%D8%AE%D8%B1%D8%A7%D8%AC-%DA%A9%D9%84%DB%8C%D8%AF-%D8%B9%D9%85%D9%88%D9%85%DB%8C-%D8%A7%D8%B2-%D8%A7%D9%85%D8%B6%D8%A7%DB%8C-%D8%AF%DB%8C%D8%AC%DB%8C%D8%AA%D8%A7%D9%84%D9%85%D9%87%D8%B1%D8%B3%D8%A7%D8%B2%D9%85%D8%A7%D9%86%DB%8C-%D9%88-%D8%A8%D8%A7%D8%B1%DA%AF%D8%B0%D8%A7%D8%B1%DB%8C-%D8%A2%D9%86-%D8%AF%D8%B1-%DA%A9%D8%A7%D8%B1%D9%BE%D9%88%D8%B4%D9%87-%D8%B3%D8%A7%D9%85%D8%A7%D9%86%D9%87-%D9%85%D9%88%D8%AF%DB%8C%D8%A7%D9%86)
+```php
+// 11 digits for legal entities, 14 digits for natural persons
+$
+esponse = Moadian::getRegistrationCodeInformation('12345678901');
+```
 
-## Contributing
+### Inquiry by UID
 
-If you find a bug or would like to contribute to this package, please feel free to [submit an issue](https://github.com/shahkochaki/moadian-iranian-tax/issues) or [create a pull request](https://github.com/shahkochaki/moadian-iranian-tax/pulls).
+```php
+$
+esponse = Moadian::inquiryByUid(
+    uid: 'your-uid',
+    start: '2023-05-14T00:00:00.000000000+03:30',
+    end:   '2023-05-14T23:59:59.123456789+03:30'
+);
+```
 
-## License
+### Inquiry by Reference Number
 
-This package is open source software licensed under the [GPL-3.0 license](https://opensource.org/licenses/GPL-3.0).
+```php
+$
+esponse = Moadian::inquiryByReferenceNumbers('your-reference-number');
+```
